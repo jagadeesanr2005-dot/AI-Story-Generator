@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # AI Story Generator
 
 A modern, responsive web app that generates unique, never-repeated stories
@@ -68,3 +69,7 @@ Story_Generator/
   database table, which can be added on request.
 - No API key, signup, or internet connection is required to generate
   stories — everything runs locally through the template engine.
+=======
+# AI-Story-Generator
+AI Story Generator built using Python, Flask, HTML, CSS, and JavaScript.
+>>>>>>> 3660b608875a8898a484d031cc104e6d8949f943
