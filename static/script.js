@@ -184,3 +184,33 @@ tabBtns.forEach(btn => btn.addEventListener('click', () => {
 }));
 
 loadState(); setTheme(currentTheme); updateCounter(); renderHistory(); renderFavorites();
+
+// Story translation
+const translateLanguage = $('translateLanguage');
+const translateBtn = $('translateBtn');
+async function translateCurrentStory() {
+  if (!currentStory) return;
+  const language = translateLanguage.value;
+  if (language === 'english') { setStatus('The story is already in English.'); return; }
+  translateBtn.disabled = true;
+  setStatus('Translating your story...');
+  try {
+    const response = await fetch('/translate', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({title: currentStory.title, story: currentStory.story, language})
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || 'Translation failed.');
+    const translated = {...currentStory, title: data.title, story: data.story, translatedFrom: currentStory.title, language: data.language, provider: data.provider};
+    translated.id = crypto.randomUUID ? crypto.randomUUID() : String(Date.now());
+    currentStory = translated;
+    history = [translated, ...history.filter(x => x.story !== translated.story)].slice(0, 30);
+    saveState(); renderHistory(); renderFavorites(); displayStory(translated, true);
+    setStatus(`Translated to ${data.language}.`);
+  } catch (error) {
+    setError(error.message || 'Translation failed.');
+    setStatus('');
+  } finally { translateBtn.disabled = false; }
+}
+translateBtn.addEventListener('click', translateCurrentStory);

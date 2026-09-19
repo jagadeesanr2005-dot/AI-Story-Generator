@@ -9,6 +9,7 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
+<div class="galaxy-bg" aria-hidden="true"><div class="stars stars-a"></div><div class="stars stars-b"></div><div class="galaxy-orbit orbit-one"></div><div class="galaxy-orbit orbit-two"></div><div class="galaxy-core"></div><div class="nebula nebula-a"></div><div class="nebula nebula-b"></div></div>
 <div class="page-glow"></div>
 <nav class="navbar"><div class="nav-content">
   <a class="brand" href="/"><span class="brand-mark">✦</span><span>StoryForge</span></a>
@@ -36,7 +37,7 @@
 <section id="outputSection" class="card output-card hidden">
   <div class="output-top"><div><div class="output-label">YOUR STORY</div><h2 id="storyTitle">Story Title</h2><div class="meta"><span id="wordCount">0 words</span><span>•</span><span id="readingTime">0 min read</span><span id="providerBadge" class="provider-badge">AI</span></div></div><button id="regenerateBtn" class="btn ghost">↻ Regenerate</button></div>
   <article id="storyOutput" class="story-text"></article>
-  <div class="output-actions"><button id="copyBtn" class="btn small">Copy</button><button id="downloadBtn" class="btn small">Download .txt</button><button id="downloadJsonBtn" class="btn small">Export JSON</button><button id="favoriteBtn" class="btn small">🤍 Favorite</button></div>
+  <div class="translate-row"><label for="translateLanguage">🌐 Translate story</label><select id="translateLanguage"><option value="english">English</option><option value="tamil">தமிழ் (Tamil)</option><option value="malayalam">മലയാളം (Malayalam)</option><option value="hindi">हिन्दी (Hindi)</option><option value="telugu">తెలుగు (Telugu)</option><option value="kannada">ಕನ್ನಡ (Kannada)</option></select><button id="translateBtn" class="btn small accent">Translate</button></div><div class="output-actions"><button id="copyBtn" class="btn small">Copy</button><button id="downloadBtn" class="btn small">Download .txt</button><button id="downloadJsonBtn" class="btn small">Export JSON</button><button id="favoriteBtn" class="btn small">🤍 Favorite</button></div>
 </section>
 <section class="card library-card"><div class="tabs"><button class="tab-btn active" data-tab="history">Recent stories</button><button class="tab-btn" data-tab="favorites">Favorites</button></div><div id="historyList" class="history-list"></div><div id="favoritesList" class="history-list hidden"></div><p id="historyEmpty" class="empty-text">No stories yet. Your generated stories will appear here.</p></section>
 </main>

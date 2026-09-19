@@ -1,21 +1,17 @@
-"""AI story generation service with Groq/Gemini support and safe fallback."""
-
+"""AI story generation and translation service with AI + free web fallback."""
 import os
 import re
-from typing import Dict
-
+from typing import Dict, List
 import requests
 from dotenv import load_dotenv
-
 from story_engine import generate_story as fallback_generate, GENRES, LENGTHS
 
 load_dotenv()
-
 WORD_RANGES = LENGTHS
+LANGUAGE_CODES = {"Tamil":"ta", "Malayalam":"ml", "Hindi":"hi", "Telugu":"te", "Kannada":"kn", "English":"en"}
 
 
 def _extract_jsonish(text: str) -> Dict[str, str]:
-    """Extract title/story from a model response without requiring JSON mode."""
     text = text.strip()
     title = "Untitled Story"
     story = text
@@ -32,86 +28,111 @@ def _extract_jsonish(text: str) -> Dict[str, str]:
 def _prompt(user_prompt: str, genre: str, length: str) -> str:
     lo, hi = WORD_RANGES[length]
     genre_name = GENRES.get(genre, genre.title())
-    return f"""You are a professional fiction writer.
-
-Create ONE original, self-contained {genre_name} story based on this user's idea:
-{user_prompt}
-
-Requirements:
-- Target approximately {lo}-{hi} words. Do not produce a tiny summary.
-- Follow the requested idea closely while adding original details.
-- Give the story a clear beginning, rising conflict, meaningful turning point, and satisfying ending.
-- Use natural dialogue when it improves the story.
-- Keep character motivations consistent and avoid random unrelated events.
-- Do not mention AI, prompts, word counts, these instructions, or content-generation limitations.
-- Do not use headings inside the story.
-- Return exactly two lines/sections:
-TITLE: <short compelling title>
-STORY: <the complete story>
-"""
+    return f"""You are a professional fiction writer.\n\nCreate ONE original, self-contained {genre_name} story based on this user's idea:\n{user_prompt}\n\nRequirements:\n- Target approximately {lo}-{hi} words. Do not produce a tiny summary.\n- Follow the requested idea closely while adding original details.\n- Give the story a clear beginning, rising conflict, meaningful turning point, and satisfying ending.\n- Use natural dialogue when it improves the story.\n- Keep character motivations consistent and avoid random unrelated events.\n- Do not mention AI, prompts, word counts, these instructions, or content-generation limitations.\n- Do not use headings inside the story.\n- Return exactly two sections:\nTITLE: <short compelling title>\nSTORY: <the complete story>\n"""
 
 
 def _groq(prompt: str) -> Dict[str, str]:
     key = os.getenv("GROQ_API_KEY", "").strip()
-    if not key:
-        raise RuntimeError("GROQ_API_KEY is not configured")
-    model = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile").strip()
-    response = requests.post(
-        "https://api.groq.com/openai/v1/chat/completions",
-        headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
-        json={
-            "model": model,
-            "messages": [
-                {"role": "system", "content": "You write high-quality original fiction."},
-                {"role": "user", "content": prompt},
-            ],
-            "temperature": 0.9,
-            "max_tokens": 2500,
-        },
-        timeout=60,
-    )
-    if not response.ok:
-        raise RuntimeError(f"Groq API error {response.status_code}: {response.text[:300]}")
-    data = response.json()
-    content = data["choices"][0]["message"]["content"]
-    return _extract_jsonish(content)
+    if not key: raise RuntimeError("GROQ_API_KEY is not configured")
+    model = os.getenv("GROQ_MODEL", "openai/gpt-oss-120b").strip()
+    r = requests.post("https://api.groq.com/openai/v1/chat/completions", headers={"Authorization":f"Bearer {key}","Content-Type":"application/json"}, json={"model":model,"messages":[{"role":"system","content":"You write high-quality original fiction."},{"role":"user","content":prompt}],"temperature":0.9,"max_tokens":2500}, timeout=60)
+    if not r.ok: raise RuntimeError(f"Groq API error {r.status_code}: {r.text[:300]}")
+    return _extract_jsonish(r.json()["choices"][0]["message"]["content"])
 
 
 def _gemini(prompt: str) -> Dict[str, str]:
     key = os.getenv("GEMINI_API_KEY", "").strip()
-    if not key:
-        raise RuntimeError("GEMINI_API_KEY is not configured")
-    model = os.getenv("GEMINI_MODEL", "gemini-2.5-flash").strip()
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
-    response = requests.post(
-        url,
-        params={"key": key},
-        json={"contents": [{"parts": [{"text": prompt}]}], "generationConfig": {"temperature": 0.9}},
-        timeout=60,
-    )
-    if not response.ok:
-        raise RuntimeError(f"Gemini API error {response.status_code}: {response.text[:300]}")
-    data = response.json()
-    content = data["candidates"][0]["content"]["parts"][0]["text"]
-    return _extract_jsonish(content)
+    if not key: raise RuntimeError("GEMINI_API_KEY is not configured")
+    model = os.getenv("GEMINI_MODEL", "gemini-3.6-flash").strip()
+    url=f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
+    r=requests.post(url,params={"key":key},json={"contents":[{"parts":[{"text":prompt}]}],"generationConfig":{"temperature":0.9}},timeout=60)
+    if not r.ok: raise RuntimeError(f"Gemini API error {r.status_code}: {r.text[:300]}")
+    return _extract_jsonish(r.json()["candidates"][0]["content"]["parts"][0]["text"])
 
 
 def generate_story(genre: str, length: str, prompt: str) -> Dict[str, str]:
-    provider = os.getenv("AI_PROVIDER", "auto").strip().lower()
-    ai_prompt = _prompt(prompt, genre, length)
-
-    providers = [provider] if provider in {"groq", "gemini"} else ["groq", "gemini"]
-    errors = []
+    provider=os.getenv("AI_PROVIDER","auto").strip().lower()
+    providers=[provider] if provider in {"groq","gemini"} else ["groq","gemini"]
+    errors=[]
     for selected in providers:
         try:
-            result = _groq(ai_prompt) if selected == "groq" else _gemini(ai_prompt)
-            if len(result["story"].split()) < 100:
-                raise RuntimeError("AI returned an unusually short story")
-            return {**result, "genre": genre, "length": length, "provider": selected}
-        except Exception as exc:
-            errors.append(f"{selected}: {exc}")
-
-    result = fallback_generate(genre=genre, length=length, prompt=prompt)
-    result["warning"] = "AI provider unavailable; generated with the built-in offline fallback."
-    result["provider_errors"] = errors
+            result=_groq(_prompt(prompt,genre,length)) if selected=="groq" else _gemini(_prompt(prompt,genre,length))
+            if len(result["story"].split())<100: raise RuntimeError("AI returned an unusually short story")
+            return {**result,"genre":genre,"length":length,"provider":selected}
+        except Exception as exc: errors.append(f"{selected}: {exc}")
+    result=fallback_generate(genre=genre,length=length,prompt=prompt)
+    result["warning"]="AI provider unavailable; generated with the built-in offline fallback."
+    result["provider_errors"]=errors
     return result
+
+
+def _translate_with_ai(text: str, language: str) -> str:
+    prompt=f"""Translate the following fiction into {language}. Preserve the meaning, names, dialogue, paragraph breaks, emotion, and story structure. Return ONLY the translation. Do not summarize or explain.\n\n{text}"""
+    provider=os.getenv("AI_PROVIDER","auto").strip().lower()
+    providers=[provider] if provider in {"groq","gemini"} else ["groq","gemini"]
+    errors=[]
+    for selected in providers:
+        try:
+            if selected=="groq": return _groq_text(prompt)
+            return _gemini_text(prompt)
+        except Exception as exc: errors.append(f"{selected}: {exc}")
+    raise RuntimeError("AI translation unavailable: " + " | ".join(errors))
+
+
+def _groq_text(prompt: str) -> str:
+    key=os.getenv("GROQ_API_KEY","").strip()
+    if not key: raise RuntimeError("GROQ_API_KEY is not configured")
+    model = os.getenv("GROQ_MODEL", "openai/gpt-oss-120b").strip()
+    r=requests.post("https://api.groq.com/openai/v1/chat/completions",headers={"Authorization":f"Bearer {key}","Content-Type":"application/json"},json={"model":model,"messages":[{"role":"user","content":prompt}],"temperature":0.2,"max_tokens":3000},timeout=60)
+    if not r.ok: raise RuntimeError(f"Groq API error {r.status_code}: {r.text[:300]}")
+    return r.json()["choices"][0]["message"]["content"].strip()
+
+
+def _gemini_text(prompt: str) -> str:
+    key=os.getenv("GEMINI_API_KEY","").strip()
+    if not key: raise RuntimeError("GEMINI_API_KEY is not configured")
+    model = os.getenv("GEMINI_MODEL", "gemini-3.6-flash").strip()
+    r=requests.post(f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",params={"key":key},json={"contents":[{"parts":[{"text":prompt}]}],"generationConfig":{"temperature":0.2}},timeout=60)
+    if not r.ok: raise RuntimeError(f"Gemini API error {r.status_code}: {r.text[:300]}")
+    return r.json()["candidates"][0]["content"]["parts"][0]["text"].strip()
+
+
+def _google_free_translate(text: str, target: str) -> str:
+    """No-key fallback using Google's public translation endpoint. Splits long text to avoid URL limits."""
+    code=LANGUAGE_CODES[target]
+    if code=="en": return text
+    paragraphs=text.split("\n\n")
+    out=[]
+    for paragraph in paragraphs:
+        if not paragraph.strip(): out.append(""); continue
+        chunks=[]; words=paragraph.split(); current=[]; size=0
+        for word in words:
+            if current and size+len(word)+1>900:
+                chunks.append(" ".join(current)); current=[]; size=0
+            current.append(word); size+=len(word)+1
+        if current: chunks.append(" ".join(current))
+        translated=[]
+        for chunk in chunks:
+            r=requests.get("https://translate.googleapis.com/translate_a/single",params={"client":"gtx","sl":"auto","tl":code,"dt":"t","q":chunk},timeout=20)
+            if not r.ok: raise RuntimeError(f"Free translation service returned HTTP {r.status_code}")
+            data=r.json()
+            translated.append("".join(part[0] for part in data[0] if part and part[0]))
+        out.append(" ".join(translated))
+    return "\n\n".join(out)
+
+
+def translate_story(title: str, story: str, language: str) -> Dict[str, str]:
+    if language not in LANGUAGE_CODES: raise RuntimeError("Unsupported translation language")
+    if language=="English": return {"title":title,"story":story,"language":language,"provider":"original"}
+    errors=[]
+    try:
+        translated=_translate_with_ai(story,language)
+        translated_title=_translate_with_ai(title,language)
+        return {"title":translated_title,"story":translated,"language":language,"provider":"ai-translation"}
+    except Exception as exc: errors.append(str(exc))
+    try:
+        translated=_google_free_translate(story,language)
+        translated_title=_google_free_translate(title,language)
+        return {"title":translated_title,"story":translated,"language":language,"provider":"free-translation"}
+    except Exception as exc: errors.append(str(exc))
+    raise RuntimeError("Translation failed. Add a GROQ_API_KEY or GEMINI_API_KEY, or make sure your PC has internet access for the free translator. " + " | ".join(errors))

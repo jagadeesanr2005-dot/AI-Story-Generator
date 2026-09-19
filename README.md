@@ -50,7 +50,7 @@ Example:
 ```env
 AI_PROVIDER=groq
 GROQ_API_KEY=your-key-here
-GROQ_MODEL=llama-3.3-70b-versatile
+GROQ_MODEL=model="openai/gpt-oss-120b"
 ```
 
 Or use Gemini:
@@ -58,7 +58,7 @@ Or use Gemini:
 ```env
 AI_PROVIDER=gemini
 GEMINI_API_KEY=your-key-here
-GEMINI_MODEL=gemini-2.5-flash
+GEMINI_MODEL=model="gemini-3.6-flash"
 ```
 
 If no key is configured, the app automatically uses its offline fallback.

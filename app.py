@@ -3,7 +3,7 @@
 import os
 from flask import Flask, render_template, request, jsonify
 from story_engine import GENRES, LENGTHS
-from story_generator import generate_story
+from story_generator import generate_story, translate_story
 
 app = Flask(__name__)
 app.config["JSON_SORT_KEYS"] = False
@@ -55,6 +55,32 @@ def generate():
     except Exception as exc:
         app.logger.exception("Story generation failed")
         return jsonify({"error": "Story generation failed. Please try again.", "detail": str(exc)}), 500
+
+
+@app.route("/translate", methods=["POST"])
+def translate():
+    data = request.get_json(silent=True) or {}
+    title = str(data.get("title") or "Untitled Story").strip()
+    story = str(data.get("story") or "").strip()
+    language = str(data.get("language") or "").strip().lower()
+
+    languages = {
+        "english": "English", "tamil": "Tamil", "malayalam": "Malayalam",
+        "hindi": "Hindi", "telugu": "Telugu", "kannada": "Kannada",
+    }
+    if not story:
+        return jsonify({"error": "There is no story to translate."}), 400
+    if language not in languages:
+        return jsonify({"error": "Please select a supported language."}), 400
+    if language == "english":
+        return jsonify({"title": title, "story": story, "language": "English", "provider": "original"})
+
+    try:
+        result = translate_story(title=title, story=story, language=languages[language])
+        return jsonify(result)
+    except Exception as exc:
+        app.logger.exception("Translation failed")
+        return jsonify({"error": str(exc)}), 503
 
 
 if __name__ == "__main__":
