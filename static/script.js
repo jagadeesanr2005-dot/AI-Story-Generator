@@ -76,7 +76,7 @@ function displayStory(data, animate = true) {
   const words = countWords(data.story || '');
   wordCountEl.textContent = `${words.toLocaleString()} words`;
   readingTimeEl.textContent = `${Math.max(1, Math.ceil(words / 200))} min read`;
-  providerEl.textContent = data.provider === 'local-fallback' ? 'Offline fallback' : `Generated with ${data.provider || 'AI'}`;
+  providerEl.textContent = '';
   providerEl.className = `provider-badge ${data.provider === 'local-fallback' ? 'offline' : ''}`;
   favoriteBtn.textContent = isFavorite(data) ? '⭐ Favorited' : '🤍 Favorite';
   if (animate) typewriterEffect(data.story); else storyOutput.textContent = data.story;
@@ -188,29 +188,93 @@ loadState(); setTheme(currentTheme); updateCounter(); renderHistory(); renderFav
 // Story translation
 const translateLanguage = $('translateLanguage');
 const translateBtn = $('translateBtn');
+const translationGalaxy = $('translationGalaxy');
+
+function showTranslationGalaxy() {
+  if (!translationGalaxy) return;
+
+  translationGalaxy.classList.remove('hidden');
+  translationGalaxy.setAttribute('aria-hidden', 'false');
+  document.body.style.overflow = 'hidden';
+}
+
+function hideTranslationGalaxy() {
+  if (!translationGalaxy) return;
+
+  translationGalaxy.classList.add('hidden');
+  translationGalaxy.setAttribute('aria-hidden', 'true');
+  document.body.style.overflow = '';
+}
+
 async function translateCurrentStory() {
   if (!currentStory) return;
+
   const language = translateLanguage.value;
-  if (language === 'english') { setStatus('The story is already in English.'); return; }
+
+  if (language === 'english') {
+    setStatus('The story is already in English.');
+    return;
+  }
+
   translateBtn.disabled = true;
+  setError('');
   setStatus('Translating your story...');
+  showTranslationGalaxy();
+
   try {
     const response = await fetch('/translate', {
       method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({title: currentStory.title, story: currentStory.story, language})
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        title: currentStory.title,
+        story: currentStory.story,
+        language
+      })
     });
+
     const data = await response.json();
-    if (!response.ok) throw new Error(data.error || 'Translation failed.');
-    const translated = {...currentStory, title: data.title, story: data.story, translatedFrom: currentStory.title, language: data.language, provider: data.provider};
-    translated.id = crypto.randomUUID ? crypto.randomUUID() : String(Date.now());
+
+    if (!response.ok) {
+      throw new Error(data.error || 'Translation failed.');
+    }
+
+    const translated = {
+      ...currentStory,
+      title: data.title,
+      story: data.story,
+      translatedFrom: currentStory.title,
+      language: data.language,
+      provider: data.provider
+    };
+
+    translated.id = crypto.randomUUID
+      ? crypto.randomUUID()
+      : String(Date.now());
+
     currentStory = translated;
-    history = [translated, ...history.filter(x => x.story !== translated.story)].slice(0, 30);
-    saveState(); renderHistory(); renderFavorites(); displayStory(translated, true);
+
+    history = [
+      translated,
+      ...history.filter(x => x.story !== translated.story)
+    ].slice(0, 30);
+
+    saveState();
+    renderHistory();
+    renderFavorites();
+    displayStory(translated, true);
+
     setStatus(`Translated to ${data.language}.`);
+
   } catch (error) {
     setError(error.message || 'Translation failed.');
     setStatus('');
-  } finally { translateBtn.disabled = false; }
+
+  } finally {
+    translateBtn.disabled = false;
+    hideTranslationGalaxy();
+  }
 }
+
 translateBtn.addEventListener('click', translateCurrentStory);

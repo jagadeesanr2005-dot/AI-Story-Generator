@@ -23,3 +23,328 @@
 @media(max-width:640px){.translate-row select{width:100%}.translate-row .btn{width:100%}.orbit-one{width:130vmax}.orbit-two{width:110vmax}}
 @media(prefers-reduced-motion:reduce){.galaxy-orbit,.nebula,.stars,.galaxy-core{animation:none}}
 .galaxy-bg{z-index:0}.page-glow{z-index:0}.navbar,.hero,.container,footer{position:relative;z-index:1}
+
+/* =========================================================
+   TRANSLATION MILKY WAY LOADER
+   Appears only while translation is running
+   ========================================================= */
+
+.translation-galaxy {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  background:
+    radial-gradient(
+      circle at center,
+      rgba(45, 25, 100, .30),
+      rgba(5, 5, 18, .92) 45%,
+      rgba(0, 0, 0, .97) 100%
+    );
+  backdrop-filter: blur(7px);
+  -webkit-backdrop-filter: blur(7px);
+  opacity: 1;
+  visibility: visible;
+  transition:
+    opacity .45s ease,
+    visibility .45s ease;
+}
+
+.translation-galaxy.hidden {
+  display: flex !important;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+/* Stars */
+
+.tg-stars {
+  position: absolute;
+  inset: -20%;
+  background-image:
+    radial-gradient(circle, rgba(255,255,255,.9) 0 1px, transparent 1.6px),
+    radial-gradient(circle, rgba(190,170,255,.7) 0 1px, transparent 1.5px);
+  background-size: 75px 82px, 137px 121px;
+  animation: tgStarsMove 45s linear infinite;
+  opacity: .65;
+}
+
+/* Main galaxy arms */
+
+.tg-galaxy {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+.tg-galaxy-1 {
+  width: min(72vw, 620px);
+  height: min(24vw, 205px);
+  background:
+    radial-gradient(
+      ellipse,
+      transparent 25%,
+      rgba(177, 142, 255, .16) 42%,
+      rgba(112, 72, 255, .30) 52%,
+      rgba(68, 115, 255, .16) 63%,
+      transparent 76%
+    );
+  filter: blur(5px);
+  box-shadow:
+    0 0 35px rgba(125, 82, 255, .32),
+    0 0 90px rgba(78, 110, 255, .16);
+  animation: tgGalaxySpin 8s linear infinite;
+}
+
+.tg-galaxy-2 {
+  width: min(62vw, 540px);
+  height: min(18vw, 155px);
+  background:
+    radial-gradient(
+      ellipse,
+      transparent 25%,
+      rgba(255,255,255,.13) 40%,
+      rgba(190,140,255,.25) 52%,
+      rgba(65,100,255,.15) 66%,
+      transparent 78%
+    );
+  filter: blur(4px);
+  transform:
+    translate(-50%, -50%)
+    rotate(55deg);
+  animation: tgGalaxySpinReverse 11s linear infinite;
+}
+
+/* Bright center */
+
+.tg-core {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 55px;
+  height: 55px;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background:
+    radial-gradient(
+      circle,
+      #ffffff 0%,
+      rgba(240,225,255,.95) 12%,
+      rgba(177,140,255,.7) 28%,
+      rgba(111,74,255,.3) 52%,
+      transparent 72%
+    );
+  box-shadow:
+    0 0 20px rgba(255,255,255,.9),
+    0 0 50px rgba(164,130,255,.8),
+    0 0 110px rgba(103,75,255,.55);
+  animation: tgCorePulse 1.8s ease-in-out infinite;
+}
+
+/* Nebula */
+
+.tg-nebula {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: min(80vw, 720px);
+  height: min(30vw, 260px);
+  transform:
+    translate(-50%, -50%)
+    rotate(-20deg);
+  border-radius: 50%;
+  background:
+    linear-gradient(
+      90deg,
+      transparent,
+      rgba(80,110,255,.08),
+      rgba(170,90,255,.24),
+      rgba(80,140,255,.12),
+      transparent
+    );
+  filter: blur(30px);
+  animation: tgNebulaSpin 14s linear infinite;
+}
+
+/* Outer glow */
+
+.tg-glow {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 260px;
+  height: 260px;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background:
+    radial-gradient(
+      circle,
+      rgba(112,78,255,.14),
+      rgba(76,105,255,.06) 45%,
+      transparent 72%
+    );
+  animation: tgGlowPulse 2.5s ease-in-out infinite;
+}
+
+/* Text */
+
+.tg-text {
+  position: absolute;
+  left: 50%;
+  top: calc(50% + 150px);
+  transform: translateX(-50%);
+  color: rgba(255,255,255,.85);
+  font-family: 'DM Sans', sans-serif;
+  font-size: .72rem;
+  font-weight: 700;
+  letter-spacing: .28em;
+  white-space: nowrap;
+  text-shadow:
+    0 0 12px rgba(150,120,255,.8);
+  animation: tgTextPulse 1.5s ease-in-out infinite;
+}
+
+/* Animations */
+
+@keyframes tgGalaxySpin {
+  from {
+    transform:
+      translate(-50%, -50%)
+      rotate(0deg);
+  }
+
+  to {
+    transform:
+      translate(-50%, -50%)
+      rotate(360deg);
+  }
+}
+
+@keyframes tgGalaxySpinReverse {
+  from {
+    transform:
+      translate(-50%, -50%)
+      rotate(55deg);
+  }
+
+  to {
+    transform:
+      translate(-50%, -50%)
+      rotate(-305deg);
+  }
+}
+
+@keyframes tgNebulaSpin {
+  from {
+    transform:
+      translate(-50%, -50%)
+      rotate(-20deg);
+  }
+
+  to {
+    transform:
+      translate(-50%, -50%)
+      rotate(340deg);
+  }
+}
+
+@keyframes tgStarsMove {
+  from {
+    transform:
+      translate3d(0,0,0)
+      scale(1);
+  }
+
+  to {
+    transform:
+      translate3d(5%,3%,0)
+      scale(1.08);
+  }
+}
+
+@keyframes tgCorePulse {
+  0%,100% {
+    transform:
+      translate(-50%, -50%)
+      scale(.85);
+    opacity: .8;
+  }
+
+  50% {
+    transform:
+      translate(-50%, -50%)
+      scale(1.18);
+    opacity: 1;
+  }
+}
+
+@keyframes tgGlowPulse {
+  0%,100% {
+    transform:
+      translate(-50%, -50%)
+      scale(.85);
+    opacity: .55;
+  }
+
+  50% {
+    transform:
+      translate(-50%, -50%)
+      scale(1.15);
+    opacity: 1;
+  }
+}
+
+@keyframes tgTextPulse {
+  0%,100% {
+    opacity: .45;
+  }
+
+  50% {
+    opacity: 1;
+  }
+}
+
+/* Mobile */
+
+@media(max-width:640px) {
+  .tg-galaxy-1 {
+    width: 125vw;
+    height: 38vw;
+  }
+
+  .tg-galaxy-2 {
+    width: 110vw;
+    height: 30vw;
+  }
+
+  .tg-nebula {
+    width: 140vw;
+    height: 45vw;
+  }
+
+  .tg-text {
+    top: calc(50% + 115px);
+    font-size: .62rem;
+  }
+}
+
+/* Accessibility */
+
+@media(prefers-reduced-motion:reduce) {
+  .tg-stars,
+  .tg-galaxy,
+  .tg-nebula,
+  .tg-core,
+  .tg-glow,
+  .tg-text {
+    animation-duration: 0.01ms;
+    animation-iteration-count: 1;
+  }
+}
