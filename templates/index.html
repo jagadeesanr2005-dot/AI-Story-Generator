@@ -1,123 +1,45 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>AI Story Generator</title>
-<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<meta name="description" content="Generate original stories from your ideas with genre and length control.">
+<title>StoryForge — AI Story Generator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
-
-  <!-- Navbar -->
-  <nav class="navbar">
-    <div class="nav-content">
-      <div class="logo">
-        <span class="logo-icon">✨</span>
-        <span class="logo-text">AI Story Generator</span>
-      </div>
-      <button id="themeToggle" class="theme-toggle" title="Toggle dark/light mode">🌙</button>
-    </div>
-  </nav>
-
-  <!-- Hero -->
-  <header class="hero">
-    <h1>Turn a single idea into an <span class="highlight">infinite</span> story</h1>
-    <p>Pick a genre, write a prompt, and generate a brand new story every single time.</p>
-  </header>
-
-  <main class="container">
-
-    <!-- Input Card -->
-    <section class="glass-card input-card">
-      <label for="promptInput">Your story prompt</label>
-      <textarea id="promptInput" rows="3" maxlength="300"
-        placeholder="e.g. Tell me a sad story&#10;or: A lonely boy searching for his family"></textarea>
-      <div class="char-counter"><span id="charCount">0</span> / 300</div>
-
-      <div class="controls-row">
-        <div class="control">
-          <label for="genreSelect">Genre</label>
-          <select id="genreSelect">
-            {% for value, label in genres %}
-            <option value="{{ value }}">{{ label }}</option>
-            {% endfor %}
-          </select>
-        </div>
-
-        <div class="control">
-          <label for="lengthSelect">Story length</label>
-          <select id="lengthSelect">
-            <option value="short">Short</option>
-            <option value="medium" selected>Medium</option>
-            <option value="long">Long</option>
-          </select>
-        </div>
-      </div>
-
-      <div class="suggestions">
-        <span class="suggestions-label">Try:</span>
-        <button class="chip" data-prompt="Tell me a sad story">❤️ Sad story</button>
-        <button class="chip" data-prompt="Tell me a horror story">👻 Horror story</button>
-        <button class="chip" data-prompt="A lonely boy searching for his family">😢 Lost family</button>
-        <button class="chip" data-prompt="Tell me an adventure story">🧗‍♂️ Adventure</button>
-      </div>
-
-      <div class="error-message" id="errorMessage"></div>
-
-      <div class="action-buttons">
-        <button id="generateBtn" class="btn btn-primary">
-          <span id="generateBtnText">✨ Generate Story</span>
-        </button>
-        <button id="clearBtn" class="btn btn-secondary">🔄 Clear</button>
-      </div>
-    </section>
-
-    <!-- Loading -->
-    <section id="loadingSection" class="glass-card loading-card hidden">
-      <div class="spinner"></div>
-      <p>Generating your story...</p>
-    </section>
-
-    <!-- Output -->
-    <section id="outputSection" class="glass-card output-card hidden">
-      <div class="output-header">
-        <h2 id="storyTitle">Story Title</h2>
-        <div class="output-meta">
-          <span id="wordCount">0 words</span>
-          <span class="dot">•</span>
-          <span id="readingTime">0 min read</span>
-        </div>
-      </div>
-
-      <div id="storyOutput" class="story-text"></div>
-
-      <div class="output-buttons">
-        <button id="copyBtn" class="btn btn-small">📋 Copy</button>
-        <button id="downloadBtn" class="btn btn-small">⬇️ Download .txt</button>
-        <button id="favoriteBtn" class="btn btn-small">🤍 Favorite</button>
-      </div>
-      <p id="copyMessage" class="copy-message hidden">Story copied successfully!</p>
-    </section>
-
-    <!-- History / Favorites Sidebar -->
-    <section class="glass-card history-card">
-      <div class="history-tabs">
-        <button class="tab-btn active" data-tab="history">🕘 History</button>
-        <button class="tab-btn" data-tab="favorites">⭐ Favorites</button>
-      </div>
-      <div id="historyList" class="history-list"></div>
-      <div id="favoritesList" class="history-list hidden"></div>
-      <p id="historyEmpty" class="empty-text">No stories generated yet.</p>
-    </section>
-
-  </main>
-
-  <footer class="footer">
-    <p>Built with ❤️ using Flask — every story is generated fresh, every time.</p>
-  </footer>
-
-  <script src="{{ url_for('static', filename='script.js') }}"></script>
-</body>
-</html>
+<div class="page-glow"></div>
+<nav class="navbar"><div class="nav-content">
+  <a class="brand" href="/"><span class="brand-mark">✦</span><span>StoryForge</span></a>
+  <div class="nav-right"><span class="status-pill"><i></i> AI story studio</span><button id="themeToggle" class="icon-btn" title="Toggle theme" aria-label="Toggle theme">🌙</button></div>
+</div></nav>
+<header class="hero">
+  <div class="eyebrow">CREATE • IMAGINE • WRITE</div>
+  <h1>Your idea.<br><em>One unforgettable story.</em></h1>
+  <p>Turn a simple prompt into an original story with a real narrative arc, genre, and length that actually changes the result.</p>
+</header>
+<main class="container">
+<section class="composer card">
+  <div class="section-heading"><div><span class="step">01</span><h2>Start with an idea</h2></div><span class="hint">Ctrl + Enter to generate</span></div>
+  <textarea id="promptInput" maxlength="300" rows="4" placeholder="A young engineer receives a message from his future self..."></textarea>
+  <div class="input-footer"><span><b id="charCount">0</b> / 300</span><span>Be specific for richer characters and plot</span></div>
+  <div class="controls-row">
+    <div class="field"><label for="genreSelect">Genre</label><select id="genreSelect">{% for value,label in genres %}<option value="{{ value }}">{{ label }}</option>{% endfor %}</select></div>
+    <div class="field"><label for="lengthSelect">Length</label><select id="lengthSelect"><option value="short">Short · 250–350 words</option><option value="medium" selected>Medium · 600–800 words</option><option value="long">Long · 1,100–1,400 words</option></select></div>
+  </div>
+  <div class="suggestions"><span>Quick starts</span><button class="chip" data-prompt="A lonely boy searching for his missing family">Lost family</button><button class="chip" data-prompt="A scientist hears a voice coming from an abandoned radio">Mysterious signal</button><button class="chip" data-prompt="Two old friends meet again after ten years">Old friends</button><button class="chip" data-prompt="A village discovers a door that was never there before">Hidden door</button></div>
+  <div id="errorMessage" class="message error"></div><div id="statusMessage" class="message status"></div>
+  <div class="actions"><button id="generateBtn" class="btn primary">✦ Generate Story</button><button id="clearBtn" class="btn ghost">Clear</button></div>
+</section>
+<section id="loadingSection" class="card loading-card hidden"><div class="loader"><span></span><span></span><span></span></div><div><strong>Writing your story...</strong><p class="loading-detail">600–800 words • Adventure</p></div></section>
+<section id="outputSection" class="card output-card hidden">
+  <div class="output-top"><div><div class="output-label">YOUR STORY</div><h2 id="storyTitle">Story Title</h2><div class="meta"><span id="wordCount">0 words</span><span>•</span><span id="readingTime">0 min read</span><span id="providerBadge" class="provider-badge">AI</span></div></div><button id="regenerateBtn" class="btn ghost">↻ Regenerate</button></div>
+  <article id="storyOutput" class="story-text"></article>
+  <div class="output-actions"><button id="copyBtn" class="btn small">Copy</button><button id="downloadBtn" class="btn small">Download .txt</button><button id="downloadJsonBtn" class="btn small">Export JSON</button><button id="favoriteBtn" class="btn small">🤍 Favorite</button></div>
+</section>
+<section class="card library-card"><div class="tabs"><button class="tab-btn active" data-tab="history">Recent stories</button><button class="tab-btn" data-tab="favorites">Favorites</button></div><div id="historyList" class="history-list"></div><div id="favoritesList" class="history-list hidden"></div><p id="historyEmpty" class="empty-text">No stories yet. Your generated stories will appear here.</p></section>
+</main>
+<footer>StoryForge · Flask + AI · Your stories stay in your browser history.</footer>
+<script src="{{ url_for('static', filename='script.js') }}"></script>
+</body></html>

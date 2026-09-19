@@ -1,75 +1,95 @@
-<<<<<<< HEAD
-# AI Story Generator
+# StoryForge — AI Story Generator
 
-A modern, responsive web app that generates unique, never-repeated stories
-from a prompt and genre — no AI API key required.
+A polished Flask story-writing app that turns a user's idea into an original story using an AI provider when configured, with a prompt-aware offline fallback when no API key is available.
 
-## Features
+## What was improved
 
-- 14 genres: Sad, Horror, Romantic, Comedy, Adventure, Fantasy, Mystery,
-  Thriller, Angry, Friendship, Family, Science Fiction, Historical, Inspirational
-- Short / Medium / Long story lengths
-- A new story every time you click Generate — even with the same prompt
-  and genre, the procedural engine randomly recombines characters, places,
-  weather, plot twists, and endings
-- Typewriter reveal animation
-- Copy to clipboard, download as `.txt`
-- Session history and favorites
-- Dark mode / light mode toggle
-- Fully responsive, glassmorphism UI
+### Problems in the original version
+- It was not actually AI generation; it stitched together pre-written template fragments.
+- The user's prompt had very little influence on the generated plot.
+- Short/Medium/Long were not reliable length controls.
+- History and favorites disappeared on refresh.
+- No clear provider/fallback state was shown.
+- No JSON export.
+- The README contained unresolved Git merge-conflict markers.
+- The frontend had limited error handling and no persistent theme preference.
 
-## How story generation works
-
-`story_engine.py` contains hand-written template banks for each genre
-(openers, middle beats, twists, endings) plus pools of names, places, and
-weather/atmosphere phrases. Each generation request randomly samples from
-these pools and stitches them together, so the same prompt and genre will
-produce a different combination of characters and events nearly every time.
-
-If you want to add real AI-generated stories instead (using OpenAI or
-Gemini), you can swap the body of `generate_story()` in `app.py`'s
-`/generate` route to call an external API instead of `story_engine.py` —
-the frontend and routes don't need to change.
+### New version
+- Real AI generation through **Groq** or **Gemini**.
+- Automatic provider selection (`AI_PROVIDER=auto`) with Groq first and Gemini second.
+- Offline fallback still works without an API key.
+- Length targets: Short 250–350, Medium 600–800, Long 1,100–1,400 words.
+- Prompt-aware generation with a proper beginning, conflict, turning point, and ending.
+- Persistent history and favorites using browser local storage.
+- Regenerate, copy, TXT download, and JSON export.
+- Light/dark theme persists between sessions.
+- Clear AI/offline provider badge and friendly errors.
+- `/health` endpoint for quick server checks.
+- Secret-safe `.env.example` and `.gitignore`.
+- Responsive UI for desktop and mobile.
 
 ## Setup
 
+1. Create a virtual environment:
+
+```bash
+python -m venv .venv
+.venv\\Scripts\\activate
+```
+
+2. Install packages:
+
 ```bash
 pip install -r requirements.txt
+```
+
+3. Optional: create `.env` from `.env.example` and add your own provider key. **Never paste the real key into GitHub or chat.**
+
+Example:
+
+```env
+AI_PROVIDER=groq
+GROQ_API_KEY=your-key-here
+GROQ_MODEL=llama-3.3-70b-versatile
+```
+
+Or use Gemini:
+
+```env
+AI_PROVIDER=gemini
+GEMINI_API_KEY=your-key-here
+GEMINI_MODEL=gemini-2.5-flash
+```
+
+If no key is configured, the app automatically uses its offline fallback.
+
+4. Run:
+
+```bash
 python app.py
 ```
 
-Then open your browser to:
-
-```
-http://127.0.0.1:5000
-```
+5. Open `http://127.0.0.1:5000`.
 
 ## Project structure
 
-```
-Story_Generator/
-├── app.py              # Flask routes
-├── story_engine.py      # Procedural story generation logic
+```text
+AI-Story-Generator-main/
+├── app.py
+├── story_generator.py      # AI provider integration + fallback selection
+├── story_engine.py         # Offline prompt/length-aware generator
 ├── requirements.txt
-├── static/
-│   ├── style.css
-│   ├── script.js
-│   └── images/
-├── templates/
-│   └── index.html
-└── README.md
+├── .env.example
+├── .gitignore
+├── templates/index.html
+└── static/
+    ├── script.js
+    └── style.css
 ```
 
-## Notes
+## Security
 
-- History and favorites are kept in memory in the browser tab (JavaScript
-  variables) for the current session — they reset on page reload. If you
-  want them to persist across reloads or across devices, that would need
-  either browser storage (not recommended for sensitive use) or a backend
-  database table, which can be added on request.
-- No API key, signup, or internet connection is required to generate
-  stories — everything runs locally through the template engine.
-=======
-# AI-Story-Generator
-AI Story Generator built using Python, Flask, HTML, CSS, and JavaScript.
->>>>>>> 3660b608875a8898a484d031cc104e6d8949f943
+- `.env` is ignored by Git.
+- API keys are read from environment variables and never sent to the frontend.
+- Keep `.env.example` key-free.
+- If a real API key was ever exposed publicly, revoke it and create a replacement.

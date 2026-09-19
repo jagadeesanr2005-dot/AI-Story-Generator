@@ -1,324 +1,186 @@
-// ---------------------------------------------------------------------------
-// AI Story Generator - frontend logic
-// ---------------------------------------------------------------------------
-
-const promptInput = document.getElementById('promptInput');
-const charCount = document.getElementById('charCount');
-const genreSelect = document.getElementById('genreSelect');
-const lengthSelect = document.getElementById('lengthSelect');
-const errorMessage = document.getElementById('errorMessage');
-
-const generateBtn = document.getElementById('generateBtn');
-const generateBtnText = document.getElementById('generateBtnText');
-const clearBtn = document.getElementById('clearBtn');
-
-const loadingSection = document.getElementById('loadingSection');
-const outputSection = document.getElementById('outputSection');
-const storyTitle = document.getElementById('storyTitle');
-const storyOutput = document.getElementById('storyOutput');
-const wordCountEl = document.getElementById('wordCount');
-const readingTimeEl = document.getElementById('readingTime');
-
-const copyBtn = document.getElementById('copyBtn');
-const copyMessage = document.getElementById('copyMessage');
-const downloadBtn = document.getElementById('downloadBtn');
-const favoriteBtn = document.getElementById('favoriteBtn');
-
-const themeToggle = document.getElementById('themeToggle');
-
-const historyList = document.getElementById('historyList');
-const favoritesList = document.getElementById('favoritesList');
-const historyEmpty = document.getElementById('historyEmpty');
+const $ = (id) => document.getElementById(id);
+const promptInput = $('promptInput');
+const charCount = $('charCount');
+const genreSelect = $('genreSelect');
+const lengthSelect = $('lengthSelect');
+const errorMessage = $('errorMessage');
+const statusMessage = $('statusMessage');
+const generateBtn = $('generateBtn');
+const clearBtn = $('clearBtn');
+const outputSection = $('outputSection');
+const loadingSection = $('loadingSection');
+const storyTitle = $('storyTitle');
+const storyOutput = $('storyOutput');
+const wordCountEl = $('wordCount');
+const readingTimeEl = $('readingTime');
+const providerEl = $('providerBadge');
+const copyBtn = $('copyBtn');
+const downloadBtn = $('downloadBtn');
+const downloadJsonBtn = $('downloadJsonBtn');
+const favoriteBtn = $('favoriteBtn');
+const regenerateBtn = $('regenerateBtn');
+const themeToggle = $('themeToggle');
+const historyList = $('historyList');
+const favoritesList = $('favoritesList');
+const historyEmpty = $('historyEmpty');
 const tabBtns = document.querySelectorAll('.tab-btn');
 
-let currentStory = null; // { title, story, genre, length }
-let history = [];        // in-memory list of generated stories this session
-let favorites = [];      // in-memory list of favorited stories this session
+const STORAGE_KEY = 'story-generator-v2';
+let currentStory = null;
+let history = [];
+let favorites = [];
 let typewriterTimer = null;
+let currentTheme = localStorage.getItem('story-theme') || 'light';
 
-// ---------------------------------------------------------------------------
-// Character counter
-// ---------------------------------------------------------------------------
-promptInput.addEventListener('input', () => {
-  charCount.textContent = promptInput.value.length;
-});
+const lengthTargets = { short: '250–350 words', medium: '600–800 words', long: '1,100–1,400 words' };
 
-// ---------------------------------------------------------------------------
-// Suggestion chips
-// ---------------------------------------------------------------------------
-document.querySelectorAll('.chip').forEach(chip => {
-  chip.addEventListener('click', () => {
-    promptInput.value = chip.dataset.prompt;
-    charCount.textContent = promptInput.value.length;
-    promptInput.focus();
-  });
-});
-
-// ---------------------------------------------------------------------------
-// Theme toggle (dark / light)
-// ---------------------------------------------------------------------------
-function applyTheme(theme) {
-  document.documentElement.setAttribute('data-theme', theme);
-  themeToggle.textContent = theme === 'dark' ? '☀️' : '🌙';
+function saveState() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify({ history, favorites }));
 }
-
-// Default to light; toggle in-memory only (no localStorage per artifact rules,
-// but this is a real Flask app served from disk, not a sandboxed artifact,
-// so this still simply lives in a JS variable for the session)
-let currentTheme = 'light';
-themeToggle.addEventListener('click', () => {
-  currentTheme = currentTheme === 'light' ? 'dark' : 'light';
-  applyTheme(currentTheme);
-});
-
-// ---------------------------------------------------------------------------
-// Validation + Generate
-// ---------------------------------------------------------------------------
-function showError(msg) {
-  errorMessage.textContent = msg;
-}
-
-function clearError() {
-  errorMessage.textContent = '';
-}
-
-async function generateStory() {
-  const prompt = promptInput.value.trim();
-  const genre = genreSelect.value;
-  const length = lengthSelect.value;
-
-  if (!prompt) {
-    showError('Please enter a story prompt.');
-    return;
-  }
-  clearError();
-
-  generateBtn.disabled = true;
-  generateBtnText.textContent = 'Generating...';
-  outputSection.classList.add('hidden');
-  loadingSection.classList.remove('hidden');
-
+function loadState() {
   try {
-    const res = await fetch('/generate', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prompt, genre, length })
-    });
-
-    const data = await res.json();
-
-    if (!res.ok) {
-      showError(data.error || 'Something went wrong. Please try again.');
-      loadingSection.classList.add('hidden');
-      generateBtn.disabled = false;
-      generateBtnText.textContent = '✨ Generate Story';
-      return;
-    }
-
-    currentStory = data;
-    displayStory(data);
-    addToHistory(data);
-
-  } catch (err) {
-    showError('Could not reach the server. Please make sure the app is running.');
-  } finally {
-    loadingSection.classList.add('hidden');
-    generateBtn.disabled = false;
-    generateBtnText.textContent = '✨ Generate Story';
-  }
+    const data = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+    history = Array.isArray(data.history) ? data.history : [];
+    favorites = Array.isArray(data.favorites) ? data.favorites : [];
+  } catch { history = []; favorites = []; }
 }
-
-generateBtn.addEventListener('click', generateStory);
-
-// Allow Ctrl+Enter to generate from the textarea
-promptInput.addEventListener('keydown', (e) => {
-  if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
-    generateStory();
-  }
-});
-
-// ---------------------------------------------------------------------------
-// Display story with typewriter animation
-// ---------------------------------------------------------------------------
-function displayStory(data) {
-  outputSection.classList.remove('hidden');
-  storyTitle.textContent = data.title;
-  favoriteBtn.textContent = '🤍 Favorite';
-  copyMessage.classList.add('hidden');
-
-  const words = data.story.split(/\s+/).filter(Boolean).length;
-  const readingMins = Math.max(1, Math.round(words / 200));
-  wordCountEl.textContent = `${words} words`;
-  readingTimeEl.textContent = `${readingMins} min read`;
-
-  typewriterEffect(data.story);
-
-  outputSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+function setTheme(theme) {
+  currentTheme = theme;
+  document.documentElement.dataset.theme = theme;
+  themeToggle.textContent = theme === 'dark' ? '☀️' : '🌙';
+  themeToggle.setAttribute('aria-label', `Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`);
+  localStorage.setItem('story-theme', theme);
 }
+function setError(message = '') { errorMessage.textContent = message; errorMessage.classList.toggle('visible', !!message); }
+function setStatus(message = '') { statusMessage.textContent = message; statusMessage.classList.toggle('visible', !!message); }
+function updateCounter() { charCount.textContent = promptInput.value.length; }
+function countWords(text) { return text.trim() ? text.trim().split(/\s+/).length : 0; }
+function safeFileName(name) { return (name || 'story').replace(/[^a-z0-9-_ ]/gi, '').trim().replace(/\s+/g, '_').slice(0, 80) || 'story'; }
+function escapeHtml(value) { const div = document.createElement('div'); div.textContent = value; return div.innerHTML; }
 
 function typewriterEffect(text) {
   clearInterval(typewriterTimer);
   storyOutput.textContent = '';
   let i = 0;
-  const speed = text.length > 600 ? 4 : 12; // faster reveal for long stories
+  const speed = text.length > 1800 ? 2 : text.length > 800 ? 4 : 9;
   typewriterTimer = setInterval(() => {
-    storyOutput.textContent += text[i];
-    i++;
-    if (i >= text.length) {
-      clearInterval(typewriterTimer);
-    }
+    storyOutput.textContent += text[i++] || '';
+    if (i >= text.length) clearInterval(typewriterTimer);
   }, speed);
 }
 
-// ---------------------------------------------------------------------------
-// Copy
-// ---------------------------------------------------------------------------
-copyBtn.addEventListener('click', async () => {
-  if (!currentStory) return;
+function displayStory(data, animate = true) {
+  currentStory = data;
+  outputSection.classList.remove('hidden');
+  storyTitle.textContent = data.title || 'Untitled Story';
+  const words = countWords(data.story || '');
+  wordCountEl.textContent = `${words.toLocaleString()} words`;
+  readingTimeEl.textContent = `${Math.max(1, Math.ceil(words / 200))} min read`;
+  providerEl.textContent = data.provider === 'local-fallback' ? 'Offline fallback' : `Generated with ${data.provider || 'AI'}`;
+  providerEl.className = `provider-badge ${data.provider === 'local-fallback' ? 'offline' : ''}`;
+  favoriteBtn.textContent = isFavorite(data) ? '⭐ Favorited' : '🤍 Favorite';
+  if (animate) typewriterEffect(data.story); else storyOutput.textContent = data.story;
+  outputSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function isFavorite(item) { return favorites.some(f => f.id === item.id || f.story === item.story); }
+
+async function generateStory() {
+  const prompt = promptInput.value.trim();
+  const genre = genreSelect.value;
+  const length = lengthSelect.value;
+  if (!prompt) return setError('Give your story a starting idea first.');
+  if (prompt.length < 3) return setError('Please enter at least a few words.');
+  setError(''); setStatus('');
+  generateBtn.disabled = true;
+  regenerateBtn.disabled = true;
+  clearInterval(typewriterTimer);
+  outputSection.classList.add('hidden');
+  loadingSection.classList.remove('hidden');
+  document.querySelector('.loading-detail').textContent = `${lengthTargets[length]} • ${genreSelect.options[genreSelect.selectedIndex].text}`;
+
   try {
-    await navigator.clipboard.writeText(currentStory.story);
-    copyMessage.textContent = 'Story copied successfully!';
-    copyMessage.classList.remove('hidden');
-    setTimeout(() => copyMessage.classList.add('hidden'), 2500);
-  } catch {
-    copyMessage.textContent = 'Could not copy — please copy manually.';
-    copyMessage.classList.remove('hidden');
+    const response = await fetch('/generate', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt, genre, length })
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || 'Unable to generate the story.');
+    data.id = crypto.randomUUID ? crypto.randomUUID() : String(Date.now());
+    history = [data, ...history.filter(x => x.story !== data.story)].slice(0, 30);
+    saveState(); renderHistory(); renderFavorites(); displayStory(data);
+    if (data.warning) setStatus(data.warning);
+  } catch (error) {
+    setError(error.message || 'Could not reach the server.');
+  } finally {
+    loadingSection.classList.add('hidden');
+    generateBtn.disabled = false;
+    regenerateBtn.disabled = false;
   }
-});
-
-// ---------------------------------------------------------------------------
-// Download as .txt
-// ---------------------------------------------------------------------------
-downloadBtn.addEventListener('click', () => {
-  if (!currentStory) return;
-  const blob = new Blob([`${currentStory.title}\n\n${currentStory.story}`], { type: 'text/plain' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `${currentStory.title.replace(/\s+/g, '_')}.txt`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-});
-
-// ---------------------------------------------------------------------------
-// Favorite
-// ---------------------------------------------------------------------------
-favoriteBtn.addEventListener('click', () => {
-  if (!currentStory) return;
-  const alreadyFav = favorites.some(f => f.story === currentStory.story);
-  if (alreadyFav) {
-    favorites = favorites.filter(f => f.story !== currentStory.story);
-    favoriteBtn.textContent = '🤍 Favorite';
-  } else {
-    favorites.unshift({ ...currentStory, id: Date.now() });
-    favoriteBtn.textContent = '⭐ Favorited';
-  }
-  renderFavorites();
-});
-
-// ---------------------------------------------------------------------------
-// History
-// ---------------------------------------------------------------------------
-function addToHistory(data) {
-  history.unshift({ ...data, id: Date.now() });
-  if (history.length > 20) history.pop();
-  renderHistory();
 }
 
 function renderHistory() {
   historyEmpty.classList.toggle('hidden', history.length > 0);
   historyList.innerHTML = history.map(item => `
-    <div class="history-item" data-id="${item.id}">
-      <div>
-        <div class="hi-title">${escapeHtml(item.title)}</div>
-        <div class="hi-genre">${escapeHtml(item.genre)} · ${escapeHtml(item.length)}</div>
-      </div>
-    </div>
-  `).join('');
-
-  historyList.querySelectorAll('.history-item').forEach(el => {
-    el.addEventListener('click', () => {
-      const id = Number(el.dataset.id);
-      const item = history.find(h => h.id === id);
-      if (item) {
-        currentStory = item;
-        displayStory(item);
-      }
-    });
-  });
+    <button class="history-item" data-id="${escapeHtml(item.id)}">
+      <span><strong>${escapeHtml(item.title)}</strong><small>${escapeHtml(item.genre)} · ${escapeHtml(item.length)} · ${countWords(item.story)} words</small></span>
+      <span>›</span>
+    </button>`).join('');
+  historyList.querySelectorAll('.history-item').forEach(btn => btn.addEventListener('click', () => {
+    const item = history.find(x => x.id === btn.dataset.id);
+    if (item) displayStory(item, false);
+  }));
 }
-
 function renderFavorites() {
-  favoritesList.innerHTML = favorites.length
-    ? favorites.map(item => `
-      <div class="history-item" data-id="${item.id}">
-        <div>
-          <div class="hi-title">${escapeHtml(item.title)}</div>
-          <div class="hi-genre">${escapeHtml(item.genre)} · ${escapeHtml(item.length)}</div>
-        </div>
-        <button class="hi-fav" data-remove="${item.id}">⭐</button>
-      </div>
-    `).join('')
-    : `<p class="empty-text">No favorites yet — click 🤍 Favorite on a story.</p>`;
-
-  favoritesList.querySelectorAll('.history-item').forEach(el => {
-    el.addEventListener('click', (e) => {
-      if (e.target.dataset.remove) return;
-      const id = Number(el.dataset.id);
-      const item = favorites.find(h => h.id === id);
-      if (item) {
-        currentStory = item;
-        displayStory(item);
-      }
-    });
-  });
-
-  favoritesList.querySelectorAll('[data-remove]').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      const id = Number(btn.dataset.remove);
-      favorites = favorites.filter(f => f.id !== id);
-      renderFavorites();
-    });
-  });
+  favoritesList.innerHTML = favorites.length ? favorites.map(item => `
+    <button class="history-item" data-id="${escapeHtml(item.id)}">
+      <span><strong>${escapeHtml(item.title)}</strong><small>${escapeHtml(item.genre)} · ${escapeHtml(item.length)}</small></span>
+      <span>⭐</span>
+    </button>`).join('') : '<p class="empty-text">No favorites yet. Save a story you love.</p>';
+  favoritesList.querySelectorAll('.history-item').forEach(btn => btn.addEventListener('click', () => {
+    const item = favorites.find(x => x.id === btn.dataset.id);
+    if (item) displayStory(item, false);
+  }));
 }
 
-function escapeHtml(str) {
-  const div = document.createElement('div');
-  div.textContent = str;
-  return div.innerHTML;
+function downloadBlob(blob, name) {
+  const url = URL.createObjectURL(blob); const a = document.createElement('a');
+  a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
 }
 
-// ---------------------------------------------------------------------------
-// History / Favorites tabs
-// ---------------------------------------------------------------------------
-tabBtns.forEach(btn => {
-  btn.addEventListener('click', () => {
-    tabBtns.forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    const tab = btn.dataset.tab;
-    historyList.classList.toggle('hidden', tab !== 'history');
-    favoritesList.classList.toggle('hidden', tab !== 'favorites');
-    historyEmpty.classList.toggle('hidden', !(tab === 'history' && history.length === 0));
-  });
-});
-
-// ---------------------------------------------------------------------------
-// Clear
-// ---------------------------------------------------------------------------
+promptInput.addEventListener('input', updateCounter);
+document.querySelectorAll('.chip').forEach(chip => chip.addEventListener('click', () => {
+  promptInput.value = chip.dataset.prompt; updateCounter(); promptInput.focus();
+}));
+themeToggle.addEventListener('click', () => setTheme(currentTheme === 'light' ? 'dark' : 'light'));
+generateBtn.addEventListener('click', generateStory);
+regenerateBtn.addEventListener('click', generateStory);
+promptInput.addEventListener('keydown', e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) generateStory(); });
 clearBtn.addEventListener('click', () => {
-  promptInput.value = '';
-  charCount.textContent = '0';
-  genreSelect.selectedIndex = 0;
-  lengthSelect.value = 'medium';
-  clearError();
-  outputSection.classList.add('hidden');
-  currentStory = null;
-  clearInterval(typewriterTimer);
+  promptInput.value = ''; updateCounter(); setError(''); setStatus(''); outputSection.classList.add('hidden'); currentStory = null; clearInterval(typewriterTimer);
 });
+copyBtn.addEventListener('click', async () => {
+  if (!currentStory) return;
+  try { await navigator.clipboard.writeText(`${currentStory.title}\n\n${currentStory.story}`); setStatus('Story copied to clipboard.'); setTimeout(() => setStatus(''), 2200); }
+  catch { setError('Clipboard access was blocked. You can select and copy the story manually.'); }
+});
+downloadBtn.addEventListener('click', () => {
+  if (!currentStory) return;
+  downloadBlob(new Blob([`${currentStory.title}\n\n${currentStory.story}`], { type: 'text/plain;charset=utf-8' }), `${safeFileName(currentStory.title)}.txt`);
+});
+downloadJsonBtn.addEventListener('click', () => {
+  if (!currentStory) return;
+  downloadBlob(new Blob([JSON.stringify(currentStory, null, 2)], { type: 'application/json' }), `${safeFileName(currentStory.title)}.json`);
+});
+favoriteBtn.addEventListener('click', () => {
+  if (!currentStory) return;
+  if (isFavorite(currentStory)) favorites = favorites.filter(f => f.story !== currentStory.story);
+  else favorites.unshift({ ...currentStory });
+  saveState(); renderFavorites(); displayStory(currentStory, false);
+});
+tabBtns.forEach(btn => btn.addEventListener('click', () => {
+  tabBtns.forEach(b => b.classList.remove('active')); btn.classList.add('active');
+  const fav = btn.dataset.tab === 'favorites'; historyList.classList.toggle('hidden', fav); favoritesList.classList.toggle('hidden', !fav); historyEmpty.classList.toggle('hidden', fav || history.length > 0);
+}));
 
-// Initial render
-renderHistory();
-renderFavorites();
+loadState(); setTheme(currentTheme); updateCounter(); renderHistory(); renderFavorites();
