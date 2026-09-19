@@ -7,8 +7,31 @@ from dotenv import load_dotenv
 from story_engine import generate_story as fallback_generate, GENRES, LENGTHS
 
 load_dotenv()
+
+
+def _clean_model_name(value: str, default: str) -> str:
+    value = (value or "").strip()
+
+    # Remove accidental model= prefix
+    if value.lower().startswith("model="):
+        value = value[6:].strip()
+
+    # Remove accidental quotes
+    value = value.strip('"').strip("'").strip()
+
+    return value or default
+
+
 WORD_RANGES = LENGTHS
-LANGUAGE_CODES = {"Tamil":"ta", "Malayalam":"ml", "Hindi":"hi", "Telugu":"te", "Kannada":"kn", "English":"en"}
+
+LANGUAGE_CODES = {
+    "Tamil": "ta",
+    "Malayalam": "ml",
+    "Hindi": "hi",
+    "Telugu": "te",
+    "Kannada": "kn",
+    "English": "en"
+}
 
 
 def _extract_jsonish(text: str) -> Dict[str, str]:
@@ -34,7 +57,10 @@ def _prompt(user_prompt: str, genre: str, length: str) -> str:
 def _groq(prompt: str) -> Dict[str, str]:
     key = os.getenv("GROQ_API_KEY", "").strip()
     if not key: raise RuntimeError("GROQ_API_KEY is not configured")
-    model = os.getenv("GROQ_MODEL", "openai/gpt-oss-120b").strip()
+    model = _clean_model_name(
+    os.getenv("GROQ_MODEL"),
+    "openai/gpt-oss-120b"
+)
     r = requests.post("https://api.groq.com/openai/v1/chat/completions", headers={"Authorization":f"Bearer {key}","Content-Type":"application/json"}, json={"model":model,"messages":[{"role":"system","content":"You write high-quality original fiction."},{"role":"user","content":prompt}],"temperature":0.9,"max_tokens":2500}, timeout=60)
     if not r.ok: raise RuntimeError(f"Groq API error {r.status_code}: {r.text[:300]}")
     return _extract_jsonish(r.json()["choices"][0]["message"]["content"])
@@ -43,7 +69,10 @@ def _groq(prompt: str) -> Dict[str, str]:
 def _gemini(prompt: str) -> Dict[str, str]:
     key = os.getenv("GEMINI_API_KEY", "").strip()
     if not key: raise RuntimeError("GEMINI_API_KEY is not configured")
-    model = os.getenv("GEMINI_MODEL", "gemini-3.6-flash").strip()
+    model = _clean_model_name(
+    os.getenv("GEMINI_MODEL"),
+    "gemini-3.6-flash"
+)
     url=f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
     r=requests.post(url,params={"key":key},json={"contents":[{"parts":[{"text":prompt}]}],"generationConfig":{"temperature":0.9}},timeout=60)
     if not r.ok: raise RuntimeError(f"Gemini API error {r.status_code}: {r.text[:300]}")
@@ -51,18 +80,62 @@ def _gemini(prompt: str) -> Dict[str, str]:
 
 
 def generate_story(genre: str, length: str, prompt: str) -> Dict[str, str]:
-    provider=os.getenv("AI_PROVIDER","auto").strip().lower()
-    providers=[provider] if provider in {"groq","gemini"} else ["groq","gemini"]
-    errors=[]
+    provider = os.getenv("AI_PROVIDER", "auto").strip().lower()
+
+    if provider in {"groq", "gemini"}:
+        providers = [provider]
+    else:
+        providers = ["groq", "gemini"]
+
+    errors = []
+
     for selected in providers:
         try:
-            result=_groq(_prompt(prompt,genre,length)) if selected=="groq" else _gemini(_prompt(prompt,genre,length))
-            if len(result["story"].split())<100: raise RuntimeError("AI returned an unusually short story")
-            return {**result,"genre":genre,"length":length,"provider":selected}
-        except Exception as exc: errors.append(f"{selected}: {exc}")
-    result=fallback_generate(genre=genre,length=length,prompt=prompt)
-    result["warning"]="AI provider unavailable; generated with the built-in offline fallback."
-    result["provider_errors"]=errors
+            print(f"\n[AI] Trying provider: {selected}")
+
+            if selected == "groq":
+                result = _groq(_prompt(prompt, genre, length))
+            else:
+                result = _gemini(_prompt(prompt, genre, length))
+
+            if len(result["story"].split()) < 100:
+                raise RuntimeError(
+                    "AI returned an unusually short story"
+                )
+
+            print(f"[AI] SUCCESS: {selected}")
+
+            return {
+                **result,
+                "genre": genre,
+                "length": length,
+                "provider": selected
+            }
+
+        except Exception as exc:
+            error_message = f"{selected}: {exc}"
+            print(f"[AI] FAILED: {error_message}")
+            errors.append(error_message)
+
+    # Offline fallback
+    result = fallback_generate(
+        genre=genre,
+        length=length,
+        prompt=prompt
+    )
+
+    result["warning"] = (
+        "AI provider unavailable; generated with the built-in offline fallback."
+    )
+
+    result["provider"] = "offline"
+    result["provider_errors"] = errors
+
+    print("\n[AI] ALL AI PROVIDERS FAILED")
+
+    for error in errors:
+        print(f"[AI] {error}")
+
     return result
 
 
@@ -82,7 +155,10 @@ def _translate_with_ai(text: str, language: str) -> str:
 def _groq_text(prompt: str) -> str:
     key=os.getenv("GROQ_API_KEY","").strip()
     if not key: raise RuntimeError("GROQ_API_KEY is not configured")
-    model = os.getenv("GROQ_MODEL", "openai/gpt-oss-120b").strip()
+    model = _clean_model_name(
+    os.getenv("GROQ_MODEL"),
+    "openai/gpt-oss-120b"
+)
     r=requests.post("https://api.groq.com/openai/v1/chat/completions",headers={"Authorization":f"Bearer {key}","Content-Type":"application/json"},json={"model":model,"messages":[{"role":"user","content":prompt}],"temperature":0.2,"max_tokens":3000},timeout=60)
     if not r.ok: raise RuntimeError(f"Groq API error {r.status_code}: {r.text[:300]}")
     return r.json()["choices"][0]["message"]["content"].strip()
@@ -91,7 +167,10 @@ def _groq_text(prompt: str) -> str:
 def _gemini_text(prompt: str) -> str:
     key=os.getenv("GEMINI_API_KEY","").strip()
     if not key: raise RuntimeError("GEMINI_API_KEY is not configured")
-    model = os.getenv("GEMINI_MODEL", "gemini-3.6-flash").strip()
+    model = _clean_model_name(
+    os.getenv("GEMINI_MODEL"),
+    "gemini-3.6-flash"
+)
     r=requests.post(f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",params={"key":key},json={"contents":[{"parts":[{"text":prompt}]}],"generationConfig":{"temperature":0.2}},timeout=60)
     if not r.ok: raise RuntimeError(f"Gemini API error {r.status_code}: {r.text[:300]}")
     return r.json()["candidates"][0]["content"]["parts"][0]["text"].strip()
